@@ -19,13 +19,10 @@ const fn = (order, down, originalIndex, curIndex, y) => (index) =>
       - y, the translated distance from the top; it's already being updated dinamically, smoothly, from react-gesture.
       Thus immediate returns `true` for both.
     */
-      { y: curIndex * 100 + y, scale: 1.1, zIndex: '1', shadow: 15, immediate: (n) => n === 'y' || n === 'zIndex' }
-    : { y: order.indexOf(index) * 100, scale: 1, zIndex: '0', shadow: 1, immediate: false }
+      { y: curIndex * 100 + y, scale: 1.05, color: '#000000', zIndex: '1', shadow: 0, immediate: (n) => n === 'y' || n === 'zIndex' }
+    : { y: order.indexOf(index) * 100, scale: 1, zIndex: '0', shadow: 0, immediate: false }
 
 function DraggableList({ items }) {
-  axios.get('http://192.168.1.5:5000').then((response) => {
-    console.log(response)
-  })
   const order = useRef(items.map((_, index) => index)) // Store indices as a local ref, this represents the item order
   /*
     Curries the default order for the initial, "rested" list state.
@@ -33,20 +30,32 @@ function DraggableList({ items }) {
     the other arguments from fn don't need to be supplied initially.
   */
   const [springs, setSprings] = useSprings(items.length, fn(order.current))
+  // axios.get('http://localhost:3000/vibrate').then(res => console.log(res))
+  let acumulator = null;
   const bind = useGesture(({ args: [originalIndex], down, delta: [, y] }) => {
     const curIndex = order.current.indexOf(originalIndex)
     const curRow = clamp(Math.round((curIndex * 100 + y) / 100), 0, items.length - 1)
     const newOrder = swap(order.current, curIndex, curRow)
+    if (curRow !== acumulator){
+      acumulator = curRow;
+      axios.get('http://localhost:3000/vibrate').then(res => console.log(res))
+    }
     /*
       Curry all variables needed for the truthy clause of the ternary expression from fn,
       so that new objects are fed to the springs without triggering a re-render.
     */
     setSprings(fn(newOrder, down, originalIndex, curIndex, y))
     // Settles the new order on the end of the drag gesture (when down is false)
-    if (!down) order.current = newOrder
+    if (!down){
+      order.current = newOrder
+      acumulator = null
+    } 
   })
   return (
+    <>
     <div class="content" style={{ height: items.length * 100 }}>
+    <p>TODO:</p>
+    <input className="input"/>
       {springs.map(({ zIndex, shadow, y, scale }, i) => (
         <animated.div
           {...bind(i)}
@@ -60,7 +69,8 @@ function DraggableList({ items }) {
         />
       ))}
     </div>
+    </>
   )
 }
 
-render(<DraggableList items={'Lorem ipsum dolor sit'.split(' ')} />, document.getElementById('root'))
+render(<DraggableList items={['Go to store', 'Drink much', 'Eat well', 'Go to gym', 'Learn React', 'Test', 'Remove old habits']} />, document.getElementById('root'))
